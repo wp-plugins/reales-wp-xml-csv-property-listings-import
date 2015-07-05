@@ -7,7 +7,7 @@ Requires at least: 4.1.0
 Tested up to: 4.2.2
 Stable tag: 1.0.0
 
-Easily import property listings from any XML or CSV file to the Reales WP theme with the Reales WP WP Add-On for WP All Import.
+Easily import property listings from any XML or CSV file to the Reales WP theme with the Reales WP Add-On for WP All Import.
 
 == Description ==
 
