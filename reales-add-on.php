@@ -4,7 +4,7 @@
 Plugin Name: WP All Import - Reales Add-On
 Plugin URI: http://www.wpallimport.com/
 Description: Supporting imports into the Reales theme.
-Version: 1.0.0
+Version: 1.0.1
 Author: Soflyy
 */
 

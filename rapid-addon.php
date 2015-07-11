@@ -65,9 +65,18 @@ if (!class_exists('RapidAddon')) {
 			if ($addon_active){
 				
 				$current_theme = wp_get_theme();
+
+				$parent_theme = $current_theme->parent();				
+
 				$theme_name = $current_theme->get('Name');
 				
 				$addon_active = (@in_array($theme_name, $this->active_themes) or empty($this->active_themes)) ? true : false;
+
+				if ( ! $addon_active and $parent_theme ){
+					$parent_theme_name = $parent_theme->get('Name');
+					$addon_active = (@in_array($parent_theme_name, $this->active_themes) or empty($this->active_themes)) ? true : false;
+
+				}
 				
 				if ( $addon_active and ! empty($this->active_plugins) ){
 
@@ -173,8 +182,15 @@ if (!class_exists('RapidAddon')) {
 
 			foreach ($this->fields as $field_slug => $field_params) {
 				if (in_array($field_params['type'], array('title', 'plain_text'))) continue;
-				$options_list[$field_slug] = '';
-			}
+				$default_value = '';
+				if (!empty($field_params['enum_values'])){
+					foreach ($field_params['enum_values'] as $key => $value) {						
+						$default_value = $key;
+						break;
+					}
+				}
+				$options_list[$field_slug] = $default_value;
+			}			
 
 			if ( ! empty($this->options) ){
 				foreach ($this->options as $slug => $value) {
@@ -248,28 +264,47 @@ if (!class_exists('RapidAddon')) {
 
 					if (in_array($field_params['type'], array('title', 'plain_text'))) continue;
 
-					if ($field_params['type'] == 'image') {
+					switch ($field_params['type']) {
 
-						// import the specified image, then set the value of the field to the image ID in the media library
+						case 'image':
+							
+							// import the specified image, then set the value of the field to the image ID in the media library
 
-						$image_url_or_path = $parsedData[$field_slug][$index];
+							$image_url_or_path = $parsedData[$field_slug][$index];
 
-						$download = $import_options['download_image'][$field_slug];
+							$download = $import_options['download_image'][$field_slug];
 
-						$uploaded_image = PMXI_API::upload_image($post_id, $image_url_or_path, $download, $importData['logger'], true);
+							$uploaded_image = PMXI_API::upload_image($post_id, $image_url_or_path, $download, $importData['logger'], true);
 
-						$data[$field_slug] = array(
-							"attachment_id" => $uploaded_image,
-							"image_url_or_path" => $image_url_or_path,
-							"download" => $download
-						);
+							$data[$field_slug] = array(
+								"attachment_id" => $uploaded_image,
+								"image_url_or_path" => $image_url_or_path,
+								"download" => $download
+							);
 
-					} else {
+							break;
 
-						// set the field data to the value of the field after it's been parsed
-						$data[$field_slug] = $parsedData[$field_slug][$index];
+						case 'file':
 
-					}
+							$image_url_or_path = $parsedData[$field_slug][$index];
+
+							$download = $import_options['download_image'][$field_slug];
+
+							$uploaded_file = PMXI_API::upload_image($post_id, $image_url_or_path, $download, $importData['logger'], true, "", "files");
+
+							$data[$field_slug] = array(
+								"attachment_id" => $uploaded_file,
+								"image_url_or_path" => $image_url_or_path,
+								"download" => $download
+							);
+
+							break;
+						
+						default:
+							// set the field data to the value of the field after it's been parsed
+							$data[$field_slug] = $parsedData[$field_slug][$index];
+							break;
+					}					
 
 					// apply mapping rules if they exist
 					if ($import_options['mapping'][$field_slug]) {
@@ -330,12 +365,15 @@ if (!class_exists('RapidAddon')) {
 			echo $this->helper_metabox_bottom();
 
 			if ( ! empty($this->image_sections) ){				
-
-				foreach ($this->image_sections as $section) {
+				$is_images_section_enabled = apply_filters('wp_all_import_is_images_section_enabled', true, $post_type);						
+				foreach ($this->image_sections as $k => $section) {
 					$section_options = array();
 					foreach ($this->image_options as $slug => $value) {
 						$section_options[$section['slug'] . $slug] = $value;
 					}										
+					if ( ! $is_images_section_enabled and ! $k ){
+						$section_options[$section['slug'] . 'is_featured'] = 1;
+					}
 					PMXI_API::add_additional_images_section($section['title'], $section['slug'], $this->helper_current_field_values($section_options), '', true, false, $section['type']);
 				}
 			}
@@ -368,10 +406,10 @@ if (!class_exists('RapidAddon')) {
 					)
 				);
 
-			} else if ($field_params['type'] == 'image') {
+			} else if ($field_params['type'] == 'image' or $field_params['type'] == 'file') {
 
 				PMXI_API::add_field(
-					'image',
+					$field_params['type'],
 					$field_params['name'],
 					array(
 						'tooltip' => $field_params['tooltip'],
@@ -421,7 +459,7 @@ if (!class_exists('RapidAddon')) {
 			} else if($field_params['type'] == 'title'){
 
 				?>
-				<h4 class="wpallimport-add-on-options-title"><?php _e($field_params['name'], 'wp_all_import_plugin'); ?><?php if ( ! empty($field_params['tooltip'])) { ?><a href="#help" class="wpallimport-help" title="<?php echo $field_params['tooltip']; ?>" style="position:relative; top: -1px;">?</a><?php } ?></h4>
+				<h4 class="wpallimport-add-on-options-title"><?php _e($field_params['name'], 'wp_all_import_plugin'); ?><?php if ( ! empty($field_params['tooltip'])): ?><a href="#help" class="wpallimport-help" title="<?php echo $field_params['tooltip']; ?>" style="position:relative; top: -1px;">?</a><?php endif; ?></h4>				
 				<?php
 
 			} else if($field_params['type'] == 'plain_text'){
@@ -504,6 +542,20 @@ if (!class_exists('RapidAddon')) {
 								'is_main_field' => $sub_field['is_main_field']
 							)
 						);
+					case 'file':
+						$field = array(
+							'type'   => 'file',
+							'label'  => $this->fields[$sub_field['slug']]['name'],
+							'params' => array(
+								'tooltip' => $this->fields[$sub_field['slug']]['tooltip'],
+								'field_name' => $this->slug."[".$sub_field['slug']."]",
+								'field_value' => $current_values[$this->slug][$sub_field['slug']],
+								'download_image' => $current_values[$this->slug]['download_image'][$sub_field['slug']],
+								'field_key' => $sub_field['slug'],
+								'addon_prefix' => $this->slug,
+								'is_main_field' => $sub_field['is_main_field']
+							)
+						);
 						break;
 					case 'radio':
 						$field = array(
@@ -562,7 +614,7 @@ if (!class_exists('RapidAddon')) {
 					$options[$field_slug] = '';
 					if (!empty($field_params['enum_values'])){
 						foreach ($field_params['enum_values'] as $key => $value) {
-							$options[$field_slug] = $key;
+							$options[$field_slug] = is_numeric($key) ? (int) $key : $key;
 							break;
 						}
 					}
@@ -983,9 +1035,15 @@ if (!class_exists('RapidAddon')) {
 			if ( ! $is_show_notice and ! empty($conditions['themes']) ){
 
 				$themeInfo    = wp_get_theme();
+				$parentInfo = $themeInfo->parent();				
 				$currentTheme = $themeInfo->get('Name');
 				
 				$is_show_notice = in_array($currentTheme, $conditions['themes']) ? false : true;				
+
+				if ( ! $is_show_notice and $parentInfo ){
+					$parent_theme = $parentInfo->get('Name');
+					$is_show_notice = in_array($parent_theme, $conditions['themes']) ? false : true;					
+				}
 
 			}
 
