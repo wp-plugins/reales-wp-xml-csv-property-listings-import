@@ -4,7 +4,7 @@
 Plugin Name: WP All Import - Reales Add-On
 Plugin URI: http://www.wpallimport.com/
 Description: Supporting imports into the Reales theme.
-Version: 1.0.3
+Version: 1.0.4
 Author: Soflyy
 */
 
@@ -486,13 +486,15 @@ function reales_addon_import( $post_id, $data, $import_options ) {
 
         	$address = $details[results][0][address_components][0][long_name] . ' ' . $details[results][0][address_components][1][long_name];
 
-        	$city = $details[results][0][address_components][2][long_name];
+        	$city = $details[results][0][address_components][4][long_name];
 
-        	$state = $details[results][0][address_components][4][long_name];
+        	$state = $details[results][0][address_components][6][long_name];
 
-        	$country = $details[results][0][address_components][5][long_name];
+        	$country = $details[results][0][address_components][7][long_name];
 
-        	$zip = $details[results][0][address_components][6][long_name];
+        	$zip = $details[results][0][address_components][8][long_name];
+
+        	$neighborhood = $details[results][0][address_components][2][long_name];
 
         }
         
@@ -506,7 +508,9 @@ function reales_addon_import( $post_id, $data, $import_options ) {
         'property_city' => $city,
         'property_state' => $state,
         'property_country' => $country,
-        'property_zip' => $zip
+        'property_zip' => $zip,
+        'property_neighborhood' => $neighborhood,
+
     );
 
     $reales_addon->log( '- Updating location data' );
