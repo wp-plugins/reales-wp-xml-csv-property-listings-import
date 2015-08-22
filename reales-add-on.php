@@ -4,7 +4,7 @@
 Plugin Name: WP All Import - Reales Add-On
 Plugin URI: http://www.wpallimport.com/
 Description: Supporting imports into the Reales theme.
-Version: 1.0.4
+Version: 1.0.5
 Author: Soflyy
 */
 
@@ -21,20 +21,34 @@ function photo_gallery( $post_id, $attachment_id, $image_filepath, $import_optio
     
 	$new_url = wp_get_attachment_url( $attachment_id );
 
-	$urls = get_post_custom_values( 'photo_gallery', $post_id );
+	$old_urls = get_post_meta( $post_id, 'property_gallery', true );
 
-	$urls = ( !empty( $urls ) ) ? explode( '~~~', $urls ) : array();
+	// turn leading ~~~ into commas
+ 	$old_urls = ( !empty ($old_urls ) ) ? str_replace( '~~~', ',', $old_urls ) : null;
 
+ 	// strip comma from front of string
+ 	$old_urls = ( $old_urls[0] == ',' ) ? substr( $old_urls, 1 ) : $old_urls;
+
+ 	// make an array of urls
+ 	$urls = explode( ',', $old_urls );
+
+ 	// convert to an array explode( ',' , $old_urls );
 	$new_urls = array();
 
 	foreach ( $urls as $url ) {
 
-		$new_urls[] = ( !empty( $url ) ) ? '~~~' . $url : null;
+		if ( !empty( $url ) ) {
+
+			$new_urls[] = '~~~' . $url;
+
+		}
 
 	}
 
+	// add our new url
 	$new_urls[] = '~~~' . $new_url;
 
+	// turn it all back in to a string
 	$new_urls = implode( '', $new_urls );
 
     update_post_meta( $post_id, 'property_gallery', $new_urls );
@@ -47,20 +61,34 @@ function property_plans( $post_id, $attachment_id, $image_filepath, $import_opti
     
 	$new_url = wp_get_attachment_url( $attachment_id );
 
-	$urls = get_post_custom_values( 'property_plans', $post_id );
+	$old_urls = get_post_meta( $post_id, 'property_plans', true );
 
-	$urls = ( !empty( $urls ) ) ? explode( '~~~', $urls ) : array();
+	// turn leading ~~~ into commas
+ 	$old_urls = ( !empty ($old_urls ) ) ? str_replace( '~~~', ',', $old_urls ) : null;
 
+ 	// strip comma from front of string
+ 	$old_urls = ( $old_urls[0] == ',' ) ? substr( $old_urls, 1 ) : $old_urls;
+
+ 	// make an array of urls
+ 	$urls = explode( ',', $old_urls );
+
+ 	// convert to an array explode( ',' , $old_urls );
 	$new_urls = array();
 
 	foreach ( $urls as $url ) {
 
-		$new_urls[] = ( !empty( $url ) ) ? '~~~' . $url : null;
+		if ( !empty( $url ) ) {
+
+			$new_urls[] = '~~~' . $url;
+
+		}
 
 	}
 
+	// add our new url
 	$new_urls[] = '~~~' . $new_url;
 
+	// turn it all back in to a string
 	$new_urls = implode( '', $new_urls );
 
     update_post_meta( $post_id, 'property_plans', $new_urls );
