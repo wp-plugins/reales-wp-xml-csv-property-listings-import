@@ -4,7 +4,7 @@
 Plugin Name: WP All Import - Reales Add-On
 Plugin URI: http://www.wpallimport.com/
 Description: Supporting imports into the Reales theme.
-Version: 1.0.5
+Version: 1.0.7
 Author: Soflyy
 */
 
@@ -154,10 +154,11 @@ $reales_addon->add_field( 'property_video_source', 'Video Source', 'radio',
 
 $reales_addon->add_field( 'property_video_id', 'Video ID', 'text', null, 'Video ID from http://www.youtube.com/watch?v=dQw4w9WgXcQ would be: dQw4w9WgXcQ' );
 
+$reales_addon->add_title( 'Property Map Location' );
 
 $reales_addon->add_field(
 	'location_settings',
-	'Property Map Location',
+	'Search Method',
 	'radio', 
 	array(
 		'search_by_address' => array(
@@ -203,7 +204,15 @@ $reales_addon->add_field(
 								'Up to 100,000 requests per day and 10 requests per second'
 							)
 						) // end Request Method options array
-					) // end Request Method nested radio field 
+					), // end Request Method nested radio field 
+
+					$reales_addon->add_field( 'address_county_or_state', 'Use County or State', 'radio', 
+						array(
+							'state' => 'State',
+							'county' => 'County',
+							'county_state' => 'County, State'
+						), "Google outputs both County and State/Province, but Reales WP has one field called 'County/State'" )
+
 				) // end Google Geocode API Settings fields
 			) // end Google Gecode API Settings options panel
 		), // end Search by Address radio field
@@ -259,12 +268,22 @@ $reales_addon->add_field(
 								'Up to 100,000 requests per day and 10 requests per second'
 							)
 						) // end Geocode API options array
-					) // end Geocode nested radio field 
+					), // end Geocode nested radio field 
+					
+					$reales_addon->add_field( 'coord_county_or_state', 'Use County or State', 'radio', 
+						array(
+							'state' => 'State',
+							'county' => 'County',
+							'county_state' => 'County, State'
+						), "Google outputs both County and State, but Reales WP has one field called 'County/State'" )
+					
 				) // end Geocode settings
 			) // end coordinates Option panel
 		) // end Search by Coordinates radio field
 	) // end Property Location radio field
 );
+
+$reales_addon->add_field( 'property_neighborhood', 'Neighborhood', 'text');
 
 $reales_addon->set_import_function( 'reales_addon_import' );
 
@@ -293,6 +312,7 @@ function reales_addon_import( $post_id, $data, $import_options ) {
         'property_video_source',
         'property_video_id',
         'property_featured',
+        'property_neighborhood'
     );
 
 	// get all the property fields
@@ -416,7 +436,7 @@ function reales_addon_import( $post_id, $data, $import_options ) {
 
     	$field_ = sanitize_key(str_replace(' ', '_', $field));
 
-    	if ( $reales_addon->can_update_meta( $field_, $import_options ) ) {
+    	if ( $reales_addon->can_update_meta( $field_, $import_options ) && !empty( $field ) ) {
 
             update_post_meta( $post_id, $field_, 1 );
 
@@ -508,21 +528,60 @@ function reales_addon_import( $post_id, $data, $import_options ) {
 
             $details = json_decode( $json, true );
 
+            $address_data = array();
+
+			foreach ( $details[results][0][address_components] as $type ) {
+
+				// parse Google Maps output into an array we can use
+				$address_data[ $type[types][0] ] = $type[long_name];
+
+			}
+
             $lat  = $details[results][0][geometry][location][lat];
 
             $long = $details[results][0][geometry][location][lng];
 
-        	$address = $details[results][0][address_components][0][long_name] . ' ' . $details[results][0][address_components][1][long_name];
+        	$address = $address_data[street_number] . ' ' . $address_data[route];
 
-        	$city = $details[results][0][address_components][4][long_name];
+        	$city = $address_data[locality];
 
-        	$state = $details[results][0][address_components][6][long_name];
+        	$country = $address_data[country];
 
-        	$country = $details[results][0][address_components][7][long_name];
+        	$zip = $address_data[postal_code];
 
-        	$zip = $details[results][0][address_components][8][long_name];
+        	$state = $address_data[administrative_area_level_1];
 
-        	$neighborhood = $details[results][0][address_components][2][long_name];
+        	$county = $address_data[administrative_area_level_2];
+
+        	if ( empty( $zip ) ) {
+
+			    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a Postal Code for this property location.' );
+
+        	}
+
+        	if ( empty( $country ) ) {
+
+			    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a Country for this property location.' );
+
+        	}
+
+        	if ( empty( $city ) ) {
+
+			    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a City for this property location.' );
+
+        	}
+
+        	if ( empty( $address_data[street_number] ) ) {
+
+			    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a Street Number for this property location.' );
+
+        	}
+
+        	if ( empty( $address_data[route] ) ) {
+
+			    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a Street Name for this property location.' );
+
+        	}
 
         }
         
@@ -534,12 +593,65 @@ function reales_addon_import( $post_id, $data, $import_options ) {
         'property_lat' => $lat,
         'property_lng' => $long,
         'property_city' => $city,
-        'property_state' => $state,
         'property_country' => $country,
-        'property_zip' => $zip,
-        'property_neighborhood' => $neighborhood,
-
+        'property_zip' => $zip
     );
+
+	if ( $data['location_settings'] == 'search_by_address' ) {
+
+		$setting = $data['address_county_or_state'];
+
+	} else { 
+
+		$setting = $data['coord_county_or_state'];
+
+	}
+
+	if ( empty( $setting ) ) {
+
+		$setting = 'state';
+
+	}
+
+    if ( $setting == 'state') {
+
+        $fields[ 'property_state' ] = $state;
+
+    	if ( empty( $state ) ) {
+
+		    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a State for this property location.' );
+
+    	}
+
+	} elseif ( $setting == 'county') {
+
+        $fields[ 'property_state' ] = $county;
+
+    	if ( empty( $county ) ) {
+
+		    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a County for this property location.' );
+
+    	}
+
+	} elseif ( $setting == 'county_state') {
+
+    	if ( empty( $state ) ) {
+
+		    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a State for this property location.' );
+
+    	}
+
+    	elseif ( empty( $county ) ) {
+
+		    $reales_addon->log( '<b>WARNING:</b> Google Maps has not returned a County for this property location.' );
+
+    	} else {
+
+    		$fields[ 'property_state' ] = $county . ', ' . $state;
+
+    	}
+
+	}
 
     $reales_addon->log( '- Updating location data' );
     

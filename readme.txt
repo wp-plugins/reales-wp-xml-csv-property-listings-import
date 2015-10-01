@@ -5,7 +5,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.1.0
 Tested up to: 4.3
-Stable tag: 1.0.5
+Stable tag: 1.0.7
 
 Easily import property listings from any XML or CSV file to the Reales WP theme with the Reales WP Add-On for WP All Import.
 
@@ -87,6 +87,13 @@ Aside from making your import easier and simpler, the Reales WP Add-On will full
 The Reales WP Add-On for WP All Import uses the Google Maps API to import your location data. For free, and without registration, the API allows you to make 2,500 requests per day. If you need more than that you can create a Google for Work account to make up to 100,000 requests per day.
 
 == Changelog ==
+
+= 1.0.7 =
+* Update WP All Import add-on API
+
+= 1.0.6 =
+* Fix a bug related to international property addresses
+* Add options to API Settings to choose State or County
 
 = 1.0.5 =
 * Fix Photo Gallery bug
